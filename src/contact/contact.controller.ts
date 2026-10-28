@@ -7,11 +7,14 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ContactService } from './contact.service';
 import { CreateContactDto } from './dto/create-contact.dto';
+import { QueryContactDto } from './dto/query-contact.dto';
 import { ContactMessage } from '../common/interfaces/clinic.interface';
+import { PaginatedResponse } from '../common/interfaces/pagination.interface';
 
 @ApiTags('Contact')
 @Controller('contact')
@@ -19,10 +22,10 @@ export class ContactController {
   constructor(private readonly contactService: ContactService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Barcha kelib tushgan murojaatlar ro‘yxatini olish' })
-  @ApiResponse({ status: 200, description: 'Murojaatlar ro‘yxati' })
-  async findAll(): Promise<ContactMessage[]> {
-    return this.contactService.findAll();
+  @ApiOperation({ summary: 'Barcha kelib tushgan murojaatlar ro‘yxatini olish (qidiruv, sahifalash va saralash bilan)' })
+  @ApiResponse({ status: 200, description: 'Murojaatlar sahifalangan ro‘yxati' })
+  async findAll(@Query() query: QueryContactDto): Promise<PaginatedResponse<ContactMessage>> {
+    return this.contactService.findAll(query);
   }
 
   @Get(':id')

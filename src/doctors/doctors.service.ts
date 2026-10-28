@@ -3,6 +3,9 @@ import { DatabaseService } from '../database/database.service';
 import { Doctor } from '../common/interfaces/clinic.interface';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
+import { QueryDoctorDto } from './dto/query-doctor.dto';
+import { PaginatedResponse } from '../common/interfaces/pagination.interface';
+import { paginate } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class DoctorsService {
@@ -29,7 +32,7 @@ export class DoctorsService {
     };
   }
 
-  async findAll(query?: { search?: string; specialtyId?: string; sort?: string }): Promise<Doctor[]> {
+  async findAll(query?: QueryDoctorDto): Promise<PaginatedResponse<Doctor>> {
     const rows = await this.db.sql`
       SELECT 
         id, "fullName", "specialtyIds", title, "experienceYears", rating, "reviewCount",
@@ -44,15 +47,21 @@ export class DoctorsService {
       const term = query.search.trim().toLowerCase();
       doctors = doctors.filter(
         d =>
-          d.fullName.toLowerCase().includes(term) ||
-          d.title.toLowerCase().includes(term) ||
-          d.bio.toLowerCase().includes(term),
+          (d.fullName && d.fullName.toLowerCase().includes(term)) ||
+          (d.title && d.title.toLowerCase().includes(term)) ||
+          (d.bio && d.bio.toLowerCase().includes(term)) ||
+          (Array.isArray(d.languages) && d.languages.some(l => l.toLowerCase().includes(term))),
       );
     }
 
     if (query?.specialtyId && query.specialtyId.trim()) {
       const spec = query.specialtyId.trim();
       doctors = doctors.filter(d => Array.isArray(d.specialtyIds) && d.specialtyIds.includes(spec));
+    }
+
+    if (query?.gender && query.gender.trim()) {
+      const genderVal = query.gender;
+      doctors = doctors.filter(d => d.gender === genderVal);
     }
 
     const sort = query?.sort || 'rating-desc';
@@ -80,7 +89,7 @@ export class DoctorsService {
         break;
     }
 
-    return doctors;
+    return paginate(doctors, query?.page, query?.limit);
   }
 
   async findOne(id: string): Promise<Doctor> {

@@ -12,6 +12,9 @@ import { Appointment } from '../common/interfaces/clinic.interface';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+import { QueryAppointmentDto } from './dto/query-appointment.dto';
+import { PaginatedResponse } from '../common/interfaces/pagination.interface';
+import { paginate } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class AppointmentsService {
@@ -38,13 +41,8 @@ export class AppointmentsService {
     };
   }
 
-  async findAll(query?: {
-    phone?: string;
-    doctorId?: string;
-    date?: string;
-    status?: string;
-  }): Promise<Appointment[]> {
-    if (query?.phone) {
+  async findAll(query?: QueryAppointmentDto): Promise<PaginatedResponse<Appointment>> {
+    if (query?.phone && query.phone.trim()) {
       const cleanPhone = query.phone.trim();
       if (!/^\+998\d{9}$/.test(cleanPhone)) {
         throw new BadRequestException({
@@ -55,14 +53,6 @@ export class AppointmentsService {
           },
         });
       }
-
-      const rows = await this.db.sql`
-        SELECT id, "doctorId", "serviceId", "date", "time", "durationMinutes", "patientName", "patientPhone", notes, status, "createdAt"
-        FROM appointments
-        WHERE "patientPhone" = ${cleanPhone}
-        ORDER BY "createdAt" DESC, "date" DESC, "time" DESC
-      `;
-      return rows.map(r => this.mapAppointmentRow(r));
     }
 
     const rows = await this.db.sql`
@@ -73,17 +63,60 @@ export class AppointmentsService {
 
     let appointments = rows.map(r => this.mapAppointmentRow(r));
 
-    if (query?.doctorId) {
-      appointments = appointments.filter(a => a.doctorId === query.doctorId);
+    if (query?.phone && query.phone.trim()) {
+      const cleanPhone = query.phone.trim();
+      appointments = appointments.filter(a => a.patientPhone === cleanPhone);
     }
-    if (query?.date) {
-      appointments = appointments.filter(a => a.date === query.date);
+    if (query?.doctorId && query.doctorId.trim()) {
+      const docId = query.doctorId.trim();
+      appointments = appointments.filter(a => a.doctorId === docId);
     }
-    if (query?.status) {
-      appointments = appointments.filter(a => a.status === query.status);
+    if (query?.serviceId && query.serviceId.trim()) {
+      const srvId = query.serviceId.trim();
+      appointments = appointments.filter(a => a.serviceId === srvId);
+    }
+    if (query?.date && query.date.trim()) {
+      const dateVal = query.date.trim();
+      appointments = appointments.filter(a => a.date === dateVal);
+    }
+    if (query?.status && query.status.trim()) {
+      const statusVal = query.status.trim();
+      appointments = appointments.filter(a => a.status === statusVal);
+    }
+    if (query?.search && query.search.trim()) {
+      const term = query.search.trim().toLowerCase();
+      appointments = appointments.filter(
+        a =>
+          (a.patientName && a.patientName.toLowerCase().includes(term)) ||
+          (a.patientPhone && a.patientPhone.toLowerCase().includes(term)) ||
+          (a.notes && a.notes.toLowerCase().includes(term)),
+      );
     }
 
-    return appointments;
+    const sort = query?.sort || 'createdAt-desc';
+    switch (sort) {
+      case 'createdAt-asc':
+        appointments.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+        break;
+      case 'date-desc':
+        appointments.sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
+        break;
+      case 'date-asc':
+        appointments.sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+        break;
+      case 'patientName-asc':
+        appointments.sort((a, b) => (a.patientName || '').localeCompare(b.patientName || ''));
+        break;
+      case 'patientName-desc':
+        appointments.sort((a, b) => (b.patientName || '').localeCompare(a.patientName || ''));
+        break;
+      case 'createdAt-desc':
+      default:
+        appointments.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        break;
+    }
+
+    return paginate(appointments, query?.page, query?.limit);
   }
 
   async findOne(id: string): Promise<Appointment> {

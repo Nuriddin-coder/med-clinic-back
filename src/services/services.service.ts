@@ -3,6 +3,9 @@ import { DatabaseService } from '../database/database.service';
 import { ServiceItem } from '../common/interfaces/clinic.interface';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
+import { QueryServiceDto } from './dto/query-service.dto';
+import { PaginatedResponse } from '../common/interfaces/pagination.interface';
+import { paginate } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class ServicesService {
@@ -19,7 +22,7 @@ export class ServicesService {
     };
   }
 
-  async findAll(query?: { search?: string; specialtyId?: string; sort?: string }): Promise<ServiceItem[]> {
+  async findAll(query?: QueryServiceDto): Promise<PaginatedResponse<ServiceItem>> {
     const rows = await this.db.sql`
       SELECT id, "name", description, "specialtyId", "durationMinutes", price
       FROM services
@@ -30,7 +33,9 @@ export class ServicesService {
     if (query?.search && query.search.trim()) {
       const term = query.search.trim().toLowerCase();
       services = services.filter(
-        s => s.name.toLowerCase().includes(term) || s.description.toLowerCase().includes(term),
+        s =>
+          (s.name && s.name.toLowerCase().includes(term)) ||
+          (s.description && s.description.toLowerCase().includes(term)),
       );
     }
 
@@ -39,10 +44,21 @@ export class ServicesService {
       services = services.filter(s => s.specialtyId === spec);
     }
 
+    if (query?.minPrice !== undefined && !isNaN(Number(query.minPrice))) {
+      services = services.filter(s => s.price >= Number(query.minPrice));
+    }
+
+    if (query?.maxPrice !== undefined && !isNaN(Number(query.maxPrice))) {
+      services = services.filter(s => s.price <= Number(query.maxPrice));
+    }
+
     const sort = query?.sort || 'name-asc';
     switch (sort) {
       case 'name-asc':
         services.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'name-desc':
+        services.sort((a, b) => b.name.localeCompare(a.name));
         break;
       case 'price-asc':
         services.sort((a, b) => a.price - b.price);
@@ -53,12 +69,15 @@ export class ServicesService {
       case 'duration-asc':
         services.sort((a, b) => a.durationMinutes - b.durationMinutes);
         break;
+      case 'duration-desc':
+        services.sort((a, b) => b.durationMinutes - a.durationMinutes);
+        break;
       default:
         services.sort((a, b) => a.name.localeCompare(b.name));
         break;
     }
 
-    return services;
+    return paginate(services, query?.page, query?.limit);
   }
 
   async findOne(id: string): Promise<ServiceItem> {

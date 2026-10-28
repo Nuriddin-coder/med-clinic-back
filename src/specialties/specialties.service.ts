@@ -3,24 +3,45 @@ import { DatabaseService } from '../database/database.service';
 import { Specialty } from '../common/interfaces/clinic.interface';
 import { CreateSpecialtyDto } from './dto/create-specialty.dto';
 import { UpdateSpecialtyDto } from './dto/update-specialty.dto';
+import { QuerySpecialtyDto } from './dto/query-specialty.dto';
+import { PaginatedResponse } from '../common/interfaces/pagination.interface';
+import { paginate } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class SpecialtiesService {
   constructor(private readonly db: DatabaseService) {}
 
-  async getAllSpecialties(): Promise<Specialty[]> {
+  async getAllSpecialties(query?: QuerySpecialtyDto): Promise<PaginatedResponse<Specialty>> {
     const rows = await this.db.sql`
       SELECT id, "name", description, icon
       FROM specialties
       ORDER BY "name" ASC
     `;
 
-    return rows.map(r => ({
+    let specialties: Specialty[] = rows.map(r => ({
       id: r.id,
       name: r.name,
       description: r.description,
       icon: r.icon,
     }));
+
+    if (query?.search && query.search.trim()) {
+      const term = query.search.trim().toLowerCase();
+      specialties = specialties.filter(
+        s =>
+          (s.name && s.name.toLowerCase().includes(term)) ||
+          (s.description && s.description.toLowerCase().includes(term)),
+      );
+    }
+
+    const sort = query?.sort || 'name-asc';
+    if (sort === 'name-desc') {
+      specialties.sort((a, b) => b.name.localeCompare(a.name));
+    } else {
+      specialties.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return paginate(specialties, query?.page, query?.limit);
   }
 
   async getSpecialtyById(id: string): Promise<Specialty> {

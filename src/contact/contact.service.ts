@@ -2,19 +2,22 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { DatabaseService } from '../database/database.service';
 import { ContactMessage } from '../common/interfaces/clinic.interface';
 import { CreateContactDto } from './dto/create-contact.dto';
+import { QueryContactDto } from './dto/query-contact.dto';
+import { PaginatedResponse } from '../common/interfaces/pagination.interface';
+import { paginate } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class ContactService {
   constructor(private readonly db: DatabaseService) {}
 
-  async findAll(): Promise<ContactMessage[]> {
+  async findAll(query?: QueryContactDto): Promise<PaginatedResponse<ContactMessage>> {
     const rows = await this.db.sql`
       SELECT id, "name", phone, email, message, "createdAt"
       FROM contact_messages
       ORDER BY "createdAt" DESC
     `;
 
-    return rows.map(r => ({
+    let messages: ContactMessage[] = rows.map(r => ({
       id: r.id,
       name: r.name,
       phone: r.phone,
@@ -22,6 +25,36 @@ export class ContactService {
       message: r.message,
       createdAt: r.createdAt,
     }));
+
+    if (query?.search && query.search.trim()) {
+      const term = query.search.trim().toLowerCase();
+      messages = messages.filter(
+        m =>
+          (m.name && m.name.toLowerCase().includes(term)) ||
+          (m.phone && m.phone.toLowerCase().includes(term)) ||
+          (m.email && m.email.toLowerCase().includes(term)) ||
+          (m.message && m.message.toLowerCase().includes(term)),
+      );
+    }
+
+    const sort = query?.sort || 'createdAt-desc';
+    switch (sort) {
+      case 'createdAt-asc':
+        messages.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+        break;
+      case 'name-asc':
+        messages.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        break;
+      case 'name-desc':
+        messages.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+        break;
+      case 'createdAt-desc':
+      default:
+        messages.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        break;
+    }
+
+    return paginate(messages, query?.page, query?.limit);
   }
 
   async findOne(id: string): Promise<ContactMessage> {

@@ -1,13 +1,26 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Frontend bilan muammosiz ishlashi uchun CORS'ni yoqish
   app.enableCors();
+
+  // Validatsiya va transformatsiyani global yoqish
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
+
+  // Global xatoliklarni ushlab qoluvchi filter
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   const config = new DocumentBuilder()
     .setTitle('Med Clinic API')
@@ -30,4 +43,4 @@ async function bootstrap() {
   Logger.log(`🚀 Dastur ishga tushdi: http://localhost:${port}`);
   Logger.log(`📚 Swagger UI manzili: http://localhost:${port}/api/docs`);
 }
-bootstrap();
+void bootstrap();

@@ -11,11 +11,13 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { DoctorsService } from './doctors.service';
 import { Doctor } from '../common/interfaces/clinic.interface';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
+import { QueryDoctorDto } from './dto/query-doctor.dto';
+import { PaginatedResponse } from '../common/interfaces/pagination.interface';
 
 @ApiTags('Doctors')
 @Controller('doctors')
@@ -23,21 +25,10 @@ export class DoctorsController {
   constructor(private readonly doctorsService: DoctorsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Shifokorlar ro‘yxatini olish (qidirish va saralash bilan)' })
-  @ApiQuery({ name: 'search', required: false, description: 'Ism, unvon yoki bio bo‘yicha qidirish' })
-  @ApiQuery({ name: 'specialtyId', required: false, description: 'Mutaxassislik ID si bo‘yicha filter' })
-  @ApiQuery({
-    name: 'sort',
-    required: false,
-    description: 'Saralash turi: name-asc, name-desc, rating-desc, experience-desc, price-asc, price-desc',
-  })
-  @ApiResponse({ status: 200, description: 'Shifokorlar ro‘yxati' })
-  async findAll(
-    @Query('search') search?: string,
-    @Query('specialtyId') specialtyId?: string,
-    @Query('sort') sort?: string,
-  ): Promise<Doctor[]> {
-    return this.doctorsService.findAll({ search, specialtyId, sort });
+  @ApiOperation({ summary: 'Shifokorlar ro‘yxatini olish (qidirish, sahifalash va saralash bilan)' })
+  @ApiResponse({ status: 200, description: 'Shifokorlar sahifalangan ro‘yxati' })
+  async findAll(@Query() query: QueryDoctorDto): Promise<PaginatedResponse<Doctor>> {
+    return this.doctorsService.findAll(query);
   }
 
   @Get(':id')

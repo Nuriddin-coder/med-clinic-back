@@ -10,12 +10,14 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+import { QueryAppointmentDto } from './dto/query-appointment.dto';
 import { Appointment } from '../common/interfaces/clinic.interface';
+import { PaginatedResponse } from '../common/interfaces/pagination.interface';
 
 @ApiTags('Appointments')
 @Controller('appointments')
@@ -23,20 +25,13 @@ export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Qabullar ro‘yxatini olish (telefon, shifokor yoki sana bo‘yicha filtr bilan)' })
-  @ApiQuery({ name: 'phone', required: false, description: 'Bemor telefon raqami (+998901234567)' })
-  @ApiQuery({ name: 'doctorId', required: false, description: 'Shifokor ID si' })
-  @ApiQuery({ name: 'date', required: false, description: 'Sana (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'status', required: false, description: 'Holat (pending, confirmed, completed, cancelled)' })
-  @ApiResponse({ status: 200, description: 'Qabullar ro‘yxati' })
-  @ApiResponse({ status: 400, description: 'Telefon raqami noto‘g‘ri' })
-  async findAll(
-    @Query('phone') phone?: string,
-    @Query('doctorId') doctorId?: string,
-    @Query('date') date?: string,
-    @Query('status') status?: string,
-  ): Promise<Appointment[]> {
-    return this.appointmentsService.findAll({ phone, doctorId, date, status });
+  @ApiOperation({
+    summary: 'Qabullar ro‘yxatini olish (qidiruv, sahifalash, telefon, shifokor, sana yoki holat bo‘yicha filtr bilan)',
+  })
+  @ApiResponse({ status: 200, description: 'Qabullar sahifalangan ro‘yxati' })
+  @ApiResponse({ status: 400, description: 'Telefon raqami noto‘g‘ri yoki parametr xatoligi' })
+  async findAll(@Query() query: QueryAppointmentDto): Promise<PaginatedResponse<Appointment>> {
+    return this.appointmentsService.findAll(query);
   }
 
   @Get(':id')

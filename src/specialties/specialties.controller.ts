@@ -9,12 +9,15 @@ import {
   Patch,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SpecialtiesService } from './specialties.service';
 import { Specialty } from '../common/interfaces/clinic.interface';
 import { CreateSpecialtyDto } from './dto/create-specialty.dto';
 import { UpdateSpecialtyDto } from './dto/update-specialty.dto';
+import { QuerySpecialtyDto } from './dto/query-specialty.dto';
+import { PaginatedResponse } from '../common/interfaces/pagination.interface';
 
 @ApiTags('Specialties')
 @Controller('specialties')
@@ -22,10 +25,12 @@ export class SpecialtiesController {
   constructor(private readonly specialtiesService: SpecialtiesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Barcha mutaxassisliklar ro‘yxatini olish' })
-  @ApiResponse({ status: 200, description: 'Mutaxassisliklar ro‘yxati' })
-  async getSpecialties(): Promise<Specialty[]> {
-    return this.specialtiesService.getAllSpecialties();
+  @ApiOperation({ summary: 'Barcha mutaxassisliklar ro‘yxatini olish (qidirish, sahifalash va saralash bilan)' })
+  @ApiResponse({ status: 200, description: 'Mutaxassisliklar sahifalangan ro‘yxati' })
+  async getSpecialties(
+    @Query() query: QuerySpecialtyDto,
+  ): Promise<PaginatedResponse<Specialty>> {
+    return this.specialtiesService.getAllSpecialties(query);
   }
 
   @Get(':id')

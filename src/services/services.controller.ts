@@ -11,11 +11,13 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ServicesService } from './services.service';
 import { ServiceItem } from '../common/interfaces/clinic.interface';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
+import { QueryServiceDto } from './dto/query-service.dto';
+import { PaginatedResponse } from '../common/interfaces/pagination.interface';
 
 @ApiTags('Services')
 @Controller('services')
@@ -23,21 +25,10 @@ export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Xizmatlar ro‘yxatini olish (qidirish va saralash bilan)' })
-  @ApiQuery({ name: 'search', required: false, description: 'Nomi yoki tavsifi bo‘yicha qidirish' })
-  @ApiQuery({ name: 'specialtyId', required: false, description: 'Mutaxassislik ID si bo‘yicha filter' })
-  @ApiQuery({
-    name: 'sort',
-    required: false,
-    description: 'Saralash turi: name-asc, price-asc, price-desc, duration-asc',
-  })
-  @ApiResponse({ status: 200, description: 'Xizmatlar ro‘yxati' })
-  async findAll(
-    @Query('search') search?: string,
-    @Query('specialtyId') specialtyId?: string,
-    @Query('sort') sort?: string,
-  ): Promise<ServiceItem[]> {
-    return this.servicesService.findAll({ search, specialtyId, sort });
+  @ApiOperation({ summary: 'Xizmatlar ro‘yxatini olish (qidirish, sahifalash va saralash bilan)' })
+  @ApiResponse({ status: 200, description: 'Xizmatlar sahifalangan ro‘yxati' })
+  async findAll(@Query() query: QueryServiceDto): Promise<PaginatedResponse<ServiceItem>> {
+    return this.servicesService.findAll(query);
   }
 
   @Get(':id')
